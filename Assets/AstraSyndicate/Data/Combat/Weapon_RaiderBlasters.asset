@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1652280b78dbb54ba551daf974fa57e, type: 3}
+  m_Name: Weapon_RaiderBlasters
+  m_EditorClassIdentifier: AstraSyndicate.Combat::AstraSyndicate.Combat.WeaponConfig
+  projectilePrefab: {fileID: 7591112827435376845, guid: d0e302e4348a5494498647904c3ec3b4, type: 3}
+  impactEffect: {fileID: 6084903719712528616, guid: d30ad0856f813db4e9902d021d3a9dee, type: 3}
+  shotsPerSecond: 3.5
+  projectileSpeed: 260
+  damage: 5
+  range: 550
+  spreadDegrees: 1.2
+  gimbalDegrees: 6
+  alternateMuzzles: 1

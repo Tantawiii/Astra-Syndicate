@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1652280b78dbb54ba551daf974fa57e, type: 3}
+  m_Name: Weapon_FlagshipCannons
+  m_EditorClassIdentifier: AstraSyndicate.Combat::AstraSyndicate.Combat.WeaponConfig
+  projectilePrefab: {fileID: 8526110114788839969, guid: e3452dbc83258854084052cfec937b53, type: 3}
+  impactEffect: {fileID: 6084903719712528616, guid: d30ad0856f813db4e9902d021d3a9dee, type: 3}
+  shotsPerSecond: 8
+  projectileSpeed: 340
+  damage: 7
+  range: 750
+  spreadDegrees: 0.35
+  gimbalDegrees: 6
+  alternateMuzzles: 1

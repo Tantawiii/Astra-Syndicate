@@ -1,6 +1,7 @@
 using System;
 using AstraSyndicate.Campaign;
 using AstraSyndicate.Core;
+using AstraSyndicate.SceneFlow;
 using UnityEngine;
 
 namespace AstraSyndicate.App
@@ -13,9 +14,13 @@ namespace AstraSyndicate.App
     {
         private const float MissionButtonWidth = 260f;
 
+        [Tooltip("Scene opened by the Combat Sandbox button. The button is hidden if the scene is not in Build Settings.")]
+        [SerializeField] private string sandboxScene = "CombatSandbox";
+
         private ICampaignRepository _campaign;
         private IProgressService _progress;
         private ICampaignFlow _flow;
+        private ISceneLoader _scenes;
         private Action _pending;
         private Vector2 _scroll;
         private bool _confirmingReset;
@@ -25,6 +30,7 @@ namespace AstraSyndicate.App
             Services.TryGet(out _campaign);
             Services.TryGet(out _progress);
             Services.TryGet(out _flow);
+            Services.TryGet(out _scenes);
         }
 
         // Button actions run here instead of inside OnGUI, so state never changes between IMGUI's
@@ -53,6 +59,7 @@ namespace AstraSyndicate.App
             GUILayout.Label("Offline campaign: development menu (placeholder UI)", DevGui.Small);
             GUILayout.Space(8f);
             DrawContinueButton();
+            DrawSandboxButton();
 
             _scroll = GUILayout.BeginScrollView(_scroll);
             foreach (ChapterData chapter in _campaign.Chapters)
@@ -73,6 +80,16 @@ namespace AstraSyndicate.App
 
             string label = _progress.HasProgress ? $"Continue: {mission.title}" : $"New Campaign: {mission.title}";
             if (GUILayout.Button(label, GUILayout.Height(44f))) Defer(() => _flow.StartMissionAsync(mission.id).Forget());
+        }
+
+        private void DrawSandboxButton()
+        {
+            if (_scenes == null || string.IsNullOrEmpty(sandboxScene) || !Application.CanStreamedLevelBeLoaded(sandboxScene)) return;
+
+            if (GUILayout.Button("Combat Sandbox (flight & shooting prototype)", GUILayout.Height(32f)))
+            {
+                Defer(() => _scenes.LoadSceneAsync(sandboxScene).Forget());
+            }
         }
 
         private void DrawChapter(ChapterData chapter)

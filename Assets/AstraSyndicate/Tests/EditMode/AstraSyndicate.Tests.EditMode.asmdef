@@ -7,7 +7,9 @@
         "AstraSyndicate.Core",
         "AstraSyndicate.Save",
         "AstraSyndicate.SceneFlow",
-        "AstraSyndicate.Campaign"
+        "AstraSyndicate.Campaign",
+        "AstraSyndicate.Combat",
+        "AstraSyndicate.AI"
     ],
     "includePlatforms": [
         "Editor"

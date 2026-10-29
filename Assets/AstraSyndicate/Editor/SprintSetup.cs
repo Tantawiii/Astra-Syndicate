@@ -12,8 +12,9 @@ using Object = UnityEngine.Object;
 namespace AstraSyndicate.EditorTools
 {
     /// <summary>
-    /// Generates the Sprint 1 content: chapter assets, campaign catalog, game config, scenes and Build
-    /// Settings. Safe to run again: existing assets and scenes are kept, so designer edits survive.
+    /// Generates the Sprint 1 content: combat assets and the combat sandbox (via CombatContentSetup), chapter
+    /// assets, campaign catalog, game config, scenes and Build Settings. Safe to run again: existing assets
+    /// and scenes are kept, so designer edits survive.
     /// </summary>
     public static class SprintSetup
     {
@@ -63,26 +64,30 @@ namespace AstraSyndicate.EditorTools
         /// <summary>Creates whatever is missing and returns true if the campaign validates.</summary>
         public static bool Run()
         {
-            EnsureFolder(CampaignFolder);
-            EnsureFolder(ScenesFolder);
-            EnsureFolder(ResourcesFolder);
+            SetupUtility.EnsureFolder(CampaignFolder);
+            SetupUtility.EnsureFolder(ScenesFolder);
+            SetupUtility.EnsureFolder(ResourcesFolder);
 
-            // Scenes first: opening a new scene unloads unused assets, which would leave the in-memory
-            // references between freshly created assets below pointing at unloaded objects.
+            // Combat assets are saved to disk immediately; the sandbox scene reloads them by path.
+            CombatContentSetup.EnsureAssets();
+
+            // Scenes before the campaign assets: opening a new scene unloads unused assets, which would leave
+            // the in-memory references between freshly created assets below pointing at unloaded objects.
             CreateSceneIfMissing(MainMenuScene, PopulateMainMenu);
             foreach (MissionSceneSpec spec in MissionScenes)
             {
                 CreateSceneIfMissing(spec.SceneName, () => PopulateMissionScene(spec));
             }
+            CreateSceneIfMissing(CombatContentSetup.SandboxScene, CombatContentSetup.PopulateSandboxScene);
             ConfigureBuildSettings();
 
-            ChapterConfig chapter01 = LoadOrCreate(Chapter01Path, CreateChapter01);
+            ChapterConfig chapter01 = SetupUtility.LoadOrCreate(Chapter01Path, CreateChapter01);
             AssetDatabase.ImportAsset(Chapter02JsonPath);
             var chapter02Json = AssetDatabase.LoadAssetAtPath<TextAsset>(Chapter02JsonPath);
             if (chapter02Json == null) Debug.LogWarning($"[Setup] {Chapter02JsonPath} is missing; the catalog will only contain Chapter 1.");
 
-            CampaignCatalog catalog = LoadOrCreate(CatalogPath, () => CreateCatalog(chapter01, chapter02Json));
-            GameConfig config = LoadOrCreate(GameConfigPath, () => CreateGameConfig(catalog));
+            CampaignCatalog catalog = SetupUtility.LoadOrCreate(CatalogPath, () => CreateCatalog(chapter01, chapter02Json));
+            GameConfig config = SetupUtility.LoadOrCreate(GameConfigPath, () => CreateGameConfig(catalog));
             if (config.Catalog == null) AssignCatalog(config, catalog);
             AssetDatabase.SaveAssets();
 
@@ -239,7 +244,10 @@ namespace AstraSyndicate.EditorTools
             Debug.Log($"[Setup] Created {path}");
         }
 
-        /// <summary>Puts the main menu first and the mission scenes after it, keeping any other scenes the team added.</summary>
+        /// <summary>
+        /// Puts the main menu first, then the mission scenes and the combat sandbox, keeping any other scenes
+        /// the team added.
+        /// </summary>
         private static void ConfigureBuildSettings()
         {
             var scenes = new List<EditorBuildSettingsScene> { new EditorBuildSettingsScene(ScenePath(MainMenuScene), true) };
@@ -247,6 +255,7 @@ namespace AstraSyndicate.EditorTools
             {
                 scenes.Add(new EditorBuildSettingsScene(ScenePath(spec.SceneName), true));
             }
+            scenes.Add(new EditorBuildSettingsScene(ScenePath(CombatContentSetup.SandboxScene), true));
 
             foreach (EditorBuildSettingsScene existing in EditorBuildSettings.scenes)
             {
@@ -254,26 +263,6 @@ namespace AstraSyndicate.EditorTools
                 scenes.Add(existing);
             }
             EditorBuildSettings.scenes = scenes.ToArray();
-        }
-
-        private static T LoadOrCreate<T>(string path, Func<T> create) where T : ScriptableObject
-        {
-            var existing = AssetDatabase.LoadAssetAtPath<T>(path);
-            if (existing != null) return existing;
-
-            T asset = create();
-            AssetDatabase.CreateAsset(asset, path);
-            Debug.Log($"[Setup] Created {path}");
-            return asset;
-        }
-
-        private static void EnsureFolder(string path)
-        {
-            if (AssetDatabase.IsValidFolder(path)) return;
-
-            string parent = Path.GetDirectoryName(path)?.Replace('\\', '/');
-            if (!string.IsNullOrEmpty(parent)) EnsureFolder(parent);
-            AssetDatabase.CreateFolder(parent, Path.GetFileName(path));
         }
 
         private static string ScenePath(string sceneName)

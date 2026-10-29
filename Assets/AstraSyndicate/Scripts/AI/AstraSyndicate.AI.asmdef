@@ -1,0 +1,17 @@
+{
+    "name": "AstraSyndicate.AI",
+    "rootNamespace": "AstraSyndicate.AI",
+    "references": [
+        "AstraSyndicate.Core",
+        "AstraSyndicate.Combat"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

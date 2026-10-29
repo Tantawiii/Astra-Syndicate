@@ -7,6 +7,9 @@
         "AstraSyndicate.Save",
         "AstraSyndicate.SceneFlow",
         "AstraSyndicate.Campaign",
+        "AstraSyndicate.Combat",
+        "AstraSyndicate.AI",
+        "AstraSyndicate.PlayerControl",
         "AstraSyndicate.App"
     ],
     "includePlatforms": [],

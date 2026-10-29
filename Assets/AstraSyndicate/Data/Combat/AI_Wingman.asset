@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a33c1835ddf10f14793fb334025f45f6, type: 3}
+  m_Name: AI_Wingman
+  m_EditorClassIdentifier: AstraSyndicate.AI::AstraSyndicate.AI.AIConfig
+  detectionRange: 700
+  retargetInterval: 0.5
+  fireConeDegrees: 10
+  aimErrorDegrees: 3.5
+  pursuitDistance: 350
+  attackThrottle: 0.65
+  boostDistance: 600
+  breakawayDistance: 60
+  breakawayDuration: 2.2
+  patrolThrottle: 0.45
+  arriveRadius: 40
+  wanderRadius: 300
+  leashDistance: 1600
+  retreatBelowHull: 0.3
+  recoverAtHull: 0.75
+  repairPerSecond: 0.05
+  safeDistance: 450
+  formationSpacing: 14
+  defendRadius: 700
+  regroupSeconds: 6
+  avoidanceLookAhead: 80
+  avoidanceRadius: 4
