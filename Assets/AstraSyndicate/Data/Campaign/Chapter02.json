@@ -1,0 +1,35 @@
+{
+    "id": "ch02",
+    "title": "Chapter 2: Echoes (JSON preview)",
+    "synopsis": "Placeholder chapter authored in JSON to exercise the JSON loading path. Replace with the real Chapter 2 content.",
+    "order": 2,
+    "missions": [
+        {
+            "id": "ch02_m01",
+            "title": "Echoes in the Dark",
+            "briefing": "A Syndicate listening post is broadcasting from beyond the rift. Destroy its escorts and reach the beacon drop point.",
+            "sceneName": "Ch01_M03",
+            "timeLimitSeconds": 240,
+            "objectives": [
+                {
+                    "id": "destroy_escorts",
+                    "type": "destroy_enemies",
+                    "description": "Destroy the listening post escorts",
+                    "targetCount": 8,
+                    "durationSeconds": 0,
+                    "targetId": "",
+                    "optional": false
+                },
+                {
+                    "id": "plant_beacon",
+                    "type": "reach_waypoint",
+                    "description": "Reach the beacon drop point",
+                    "targetCount": 0,
+                    "durationSeconds": 0,
+                    "targetId": "beacon_drop",
+                    "optional": false
+                }
+            ]
+        }
+    ]
+}

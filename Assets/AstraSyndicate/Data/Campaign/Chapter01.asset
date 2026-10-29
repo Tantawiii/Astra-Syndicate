@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8353dac1337063a4cb5b3184aabfa097, type: 3}
+  m_Name: Chapter01
+  m_EditorClassIdentifier: AstraSyndicate.Campaign::AstraSyndicate.Campaign.ChapterConfig
+  chapter:
+    id: ch01
+    title: 'Chapter 1: Frontier Watch'
+    synopsis: Placeholder story. Your fleet is posted to the Kepler relay just as
+      Syndicate raiders start probing the frontier.
+    order: 1
+    missions:
+    - id: ch01_m01
+      title: First Contact
+      briefing: Raider scouts are circling the relay. Intercept and destroy them
+        before they report back.
+      sceneName: Ch01_M01
+      timeLimitSeconds: 0
+      objectives:
+      - id: destroy_scouts
+        type: destroy_enemies
+        description: Destroy the raider scouts
+        targetCount: 5
+        durationSeconds: 0
+        targetId: 
+        optional: 0
+    - id: ch01_m02
+      title: Hold the Line
+      briefing: A raider strike group is inbound. Keep the relay alive until reinforcements
+        jump in.
+      sceneName: Ch01_M02
+      timeLimitSeconds: 0
+      objectives:
+      - id: defend_relay
+        type: survive
+        description: Defend the relay
+        targetCount: 0
+        durationSeconds: 60
+        targetId: 
+        optional: 0
+      - id: thin_the_herd
+        type: destroy_enemies
+        description: Destroy 10 raiders
+        targetCount: 10
+        durationSeconds: 0
+        targetId: 
+        optional: 1
+    - id: ch01_m03
+      title: Into the Rift
+      briefing: The raiders fell back through the rift. Reach the rift gate before
+        it collapses.
+      sceneName: Ch01_M03
+      timeLimitSeconds: 180
+      objectives:
+      - id: reach_gate
+        type: reach_waypoint
+        description: Reach the rift gate
+        targetCount: 0
+        durationSeconds: 0
+        targetId: rift_gate
+        optional: 0

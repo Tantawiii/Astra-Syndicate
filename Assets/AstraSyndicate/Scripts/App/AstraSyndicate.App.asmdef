@@ -1,0 +1,19 @@
+{
+    "name": "AstraSyndicate.App",
+    "rootNamespace": "AstraSyndicate.App",
+    "references": [
+        "AstraSyndicate.Core",
+        "AstraSyndicate.Save",
+        "AstraSyndicate.SceneFlow",
+        "AstraSyndicate.Campaign"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

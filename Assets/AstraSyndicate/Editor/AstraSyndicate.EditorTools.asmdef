@@ -1,0 +1,22 @@
+{
+    "name": "AstraSyndicate.EditorTools",
+    "rootNamespace": "AstraSyndicate.EditorTools",
+    "references": [
+        "AstraSyndicate.Core",
+        "AstraSyndicate.Save",
+        "AstraSyndicate.SceneFlow",
+        "AstraSyndicate.Campaign",
+        "AstraSyndicate.App"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

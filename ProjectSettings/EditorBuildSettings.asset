@@ -6,8 +6,17 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/SampleScene.unity
-    guid: 99c9720ab356a0642a771bea13969a05
+    path: Assets/AstraSyndicate/Scenes/MainMenu.unity
+    guid: 82fa169f70dcfbd45aa692e6aca6e21f
+  - enabled: 1
+    path: Assets/AstraSyndicate/Scenes/Ch01_M01.unity
+    guid: d3b901eedeb048f4f917c7c12d9ccb35
+  - enabled: 1
+    path: Assets/AstraSyndicate/Scenes/Ch01_M02.unity
+    guid: 68367d4858dfb4d4fb92f2ad60c015d4
+  - enabled: 1
+    path: Assets/AstraSyndicate/Scenes/Ch01_M03.unity
+    guid: 60540e50e44e39e43b419918d20a8214
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
