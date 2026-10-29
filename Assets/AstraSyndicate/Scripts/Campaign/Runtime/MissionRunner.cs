@@ -4,8 +4,8 @@ using UnityEngine;
 namespace AstraSyndicate.Campaign
 {
     /// <summary>
-    /// Unity-side driver for the mission state manager: ticks it every frame, freezes game time while
-    /// a mission is paused, and pauses the mission when the app is sent to the background.
+    /// Unity-side driver for the mission state manager: ticks it every frame, runs game time only while a
+    /// mission is in progress (or outside missions), and pauses the mission when the app is sent to the background.
     /// </summary>
     public sealed class MissionRunner : MonoBehaviour
     {
@@ -35,9 +35,10 @@ namespace AstraSyndicate.Campaign
             Time.timeScale = 1f;
         }
 
+        // The world waits for launch during the briefing and stops behind the pause and results screens.
         private static void OnMissionStateChanged(MissionStateChangedEvent evt)
         {
-            Time.timeScale = evt.Current == MissionState.Paused ? 0f : 1f;
+            Time.timeScale = evt.Current == MissionState.Running || evt.Current == MissionState.Idle ? 1f : 0f;
         }
     }
 }

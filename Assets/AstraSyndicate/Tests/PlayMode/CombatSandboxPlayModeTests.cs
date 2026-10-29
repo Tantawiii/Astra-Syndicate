@@ -87,10 +87,11 @@ namespace AstraSyndicate.Tests
             yield return new WaitForSeconds(2f);
         }
 
+        // Real time, so the timeout still expires if game time is frozen.
         private static IEnumerator WaitUntil(System.Func<bool> condition, float timeout)
         {
-            float end = Time.time + timeout;
-            while (!condition() && Time.time < end) yield return null;
+            float end = Time.realtimeSinceStartup + timeout;
+            while (!condition() && Time.realtimeSinceStartup < end) yield return null;
         }
     }
 }

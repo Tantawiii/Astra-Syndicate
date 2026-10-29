@@ -9,6 +9,7 @@
         "AstraSyndicate.Combat",
         "AstraSyndicate.AI",
         "AstraSyndicate.PlayerControl",
+        "AstraSyndicate.Security",
         "AstraSyndicate.App"
     ],
     "includePlatforms": [

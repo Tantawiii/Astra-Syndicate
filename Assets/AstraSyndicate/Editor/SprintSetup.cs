@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using AstraSyndicate.App;
 using AstraSyndicate.Campaign;
+using AstraSyndicate.Security;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -12,8 +14,8 @@ using Object = UnityEngine.Object;
 namespace AstraSyndicate.EditorTools
 {
     /// <summary>
-    /// Generates the Sprint 1 content: combat assets and the combat sandbox (via CombatContentSetup), chapter
-    /// assets, campaign catalog, game config, scenes and Build Settings. Safe to run again: existing assets
+    /// Generates the Sprint 1 content: combat assets, the mission scenes and the combat sandbox, chapter assets,
+    /// campaign catalog, game config, the save protector and Build Settings. Safe to run again: existing assets
     /// and scenes are kept, so designer edits survive.
     /// </summary>
     public static class SprintSetup
@@ -22,19 +24,21 @@ namespace AstraSyndicate.EditorTools
 
         private const string Root = "Assets/AstraSyndicate";
         private const string CampaignFolder = Root + "/Data/Campaign";
+        private const string SecurityFolder = Root + "/Data/Security";
         private const string ScenesFolder = Root + "/Scenes";
         private const string ResourcesFolder = Root + "/Resources/AstraSyndicate";
         private const string Chapter01Path = CampaignFolder + "/Chapter01.asset";
         private const string Chapter02JsonPath = CampaignFolder + "/Chapter02.json";
         private const string CatalogPath = CampaignFolder + "/CampaignCatalog.asset";
+        private const string SaveProtectorPath = SecurityFolder + "/SaveProtector_AES.asset";
         private const string GameConfigPath = ResourcesFolder + "/GameConfig.asset";
         private const string TemplateSampleScene = "Assets/Scenes/SampleScene.unity";
 
         private static readonly MissionSceneSpec[] MissionScenes =
         {
-            new MissionSceneSpec("Ch01_M01", "ch01_m01", new Color(0.02f, 0.04f, 0.10f), new Vector3(-60f, -10f, 160f), 60f),
-            new MissionSceneSpec("Ch01_M02", "ch01_m02", new Color(0.08f, 0.03f, 0.06f), new Vector3(70f, 5f, 200f), 90f),
-            new MissionSceneSpec("Ch01_M03", "ch01_m03", new Color(0.02f, 0.07f, 0.07f), new Vector3(0f, -40f, 260f), 140f),
+            new MissionSceneSpec("Ch01_M01", MissionSceneSetup.PopulateFirstContact),
+            new MissionSceneSpec("Ch01_M02", MissionSceneSetup.PopulateHoldTheLine),
+            new MissionSceneSpec("Ch01_M03", MissionSceneSetup.PopulateIntoTheRift),
         };
 
         [MenuItem("Tools/Astra Syndicate/Setup Sprint 1 Content", priority = 0)]
@@ -65,10 +69,11 @@ namespace AstraSyndicate.EditorTools
         public static bool Run()
         {
             SetupUtility.EnsureFolder(CampaignFolder);
+            SetupUtility.EnsureFolder(SecurityFolder);
             SetupUtility.EnsureFolder(ScenesFolder);
             SetupUtility.EnsureFolder(ResourcesFolder);
 
-            // Combat assets are saved to disk immediately; the sandbox scene reloads them by path.
+            // Combat assets are saved to disk immediately; the scenes below reload them by path.
             CombatContentSetup.EnsureAssets();
 
             // Scenes before the campaign assets: opening a new scene unloads unused assets, which would leave
@@ -76,7 +81,7 @@ namespace AstraSyndicate.EditorTools
             CreateSceneIfMissing(MainMenuScene, PopulateMainMenu);
             foreach (MissionSceneSpec spec in MissionScenes)
             {
-                CreateSceneIfMissing(spec.SceneName, () => PopulateMissionScene(spec));
+                CreateOrRebuildMissionScene(spec);
             }
             CreateSceneIfMissing(CombatContentSetup.SandboxScene, CombatContentSetup.PopulateSandboxScene);
             ConfigureBuildSettings();
@@ -89,6 +94,15 @@ namespace AstraSyndicate.EditorTools
             CampaignCatalog catalog = SetupUtility.LoadOrCreate(CatalogPath, () => CreateCatalog(chapter01, chapter02Json));
             GameConfig config = SetupUtility.LoadOrCreate(GameConfigPath, () => CreateGameConfig(catalog));
             if (config.Catalog == null) AssignCatalog(config, catalog);
+
+            // Saves are encrypted by the reference AES protector unless another provider is already assigned.
+            var protector = SetupUtility.LoadOrCreate(SaveProtectorPath, ScriptableObject.CreateInstance<AesSaveProtectorProvider>);
+            if (config.SaveProtector == null)
+            {
+                SetupUtility.Assign(config, ("saveProtector", protector));
+                EditorUtility.SetDirty(config);
+                Debug.Log($"[Setup] Save files are now protected by {SaveProtectorPath}.");
+            }
             AssetDatabase.SaveAssets();
 
             return CampaignValidation.ValidateAndLog(config.Catalog);
@@ -193,17 +207,6 @@ namespace AstraSyndicate.EditorTools
             new GameObject("MainMenu").AddComponent<DevMainMenu>();
         }
 
-        private static void PopulateMissionScene(MissionSceneSpec spec)
-        {
-            CreateCamera(spec.Background);
-            CreateSun();
-            CreatePlanet(spec);
-
-            var mission = new GameObject("Mission");
-            mission.AddComponent<MissionSceneController>().FallbackMissionId = spec.FallbackMissionId;
-            mission.AddComponent<DevMissionHud>();
-        }
-
         private static void CreateCamera(Color background)
         {
             var go = new GameObject("Main Camera") { tag = "MainCamera" };
@@ -216,23 +219,6 @@ namespace AstraSyndicate.EditorTools
             go.AddComponent<AudioListener>();
         }
 
-        private static void CreateSun()
-        {
-            var light = new GameObject("Directional Light").AddComponent<Light>();
-            light.type = LightType.Directional;
-            light.intensity = 1.2f;
-            light.transform.rotation = Quaternion.Euler(35f, -40f, 0f);
-        }
-
-        private static void CreatePlanet(MissionSceneSpec spec)
-        {
-            GameObject planet = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            planet.name = "Planet (placeholder)";
-            Object.DestroyImmediate(planet.GetComponent<Collider>());
-            planet.transform.position = spec.PlanetPosition;
-            planet.transform.localScale = Vector3.one * spec.PlanetScale;
-        }
-
         private static void CreateSceneIfMissing(string sceneName, Action populate)
         {
             string path = ScenePath(sceneName);
@@ -242,6 +228,30 @@ namespace AstraSyndicate.EditorTools
             populate();
             EditorSceneManager.SaveScene(scene, path);
             Debug.Log($"[Setup] Created {path}");
+        }
+
+        /// <summary>
+        /// Creates a mission scene, or rebuilds one generated before combat existed (the Task 1.1 placeholders have no
+        /// MissionCombatBinder). Rebuilding reuses the scene asset, so its GUID and Build Settings entry stay valid.
+        /// Scenes that already have combat are left alone, so designer edits survive.
+        /// </summary>
+        private static void CreateOrRebuildMissionScene(MissionSceneSpec spec)
+        {
+            string path = ScenePath(spec.SceneName);
+            if (!File.Exists(path))
+            {
+                CreateSceneIfMissing(spec.SceneName, spec.Populate);
+                return;
+            }
+
+            Scene scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+            bool hasCombat = scene.GetRootGameObjects().Any(root => root.GetComponentInChildren<MissionCombatBinder>(true) != null);
+            if (hasCombat) return;
+
+            foreach (GameObject root in scene.GetRootGameObjects()) Object.DestroyImmediate(root);
+            spec.Populate();
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log($"[Setup] Rebuilt placeholder scene {path} with combat content");
         }
 
         /// <summary>
@@ -273,18 +283,12 @@ namespace AstraSyndicate.EditorTools
         private readonly struct MissionSceneSpec
         {
             public readonly string SceneName;
-            public readonly string FallbackMissionId;
-            public readonly Color Background;
-            public readonly Vector3 PlanetPosition;
-            public readonly float PlanetScale;
+            public readonly Action Populate;
 
-            public MissionSceneSpec(string sceneName, string fallbackMissionId, Color background, Vector3 planetPosition, float planetScale)
+            public MissionSceneSpec(string sceneName, Action populate)
             {
                 SceneName = sceneName;
-                FallbackMissionId = fallbackMissionId;
-                Background = background;
-                PlanetPosition = planetPosition;
-                PlanetScale = planetScale;
+                Populate = populate;
             }
         }
     }

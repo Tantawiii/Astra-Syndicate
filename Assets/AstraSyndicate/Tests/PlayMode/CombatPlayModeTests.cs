@@ -22,9 +22,10 @@ namespace AstraSyndicate.Tests
         private readonly List<UnitDestroyedEvent> _destroyed = new List<UnitDestroyedEvent>();
         private EventBus _events;
 
-        [SetUp]
-        public void SetUp()
+        [UnitySetUp]
+        public IEnumerator SetUp()
         {
+            yield return TestScenes.LoadEmpty();
             _destroyed.Clear();
             _events = new EventBus();
             _events.Subscribe<UnitDestroyedEvent>(e => _destroyed.Add(e));
@@ -244,10 +245,11 @@ namespace AstraSyndicate.Tests
             return created;
         }
 
+        // Real time, so the timeout still expires if a test leaves game time frozen.
         private static IEnumerator WaitUntil(Func<bool> condition)
         {
-            float end = Time.time + Timeout;
-            while (!condition() && Time.time < end) yield return null;
+            float end = Time.realtimeSinceStartup + Timeout;
+            while (!condition() && Time.realtimeSinceStartup < end) yield return null;
         }
     }
 }

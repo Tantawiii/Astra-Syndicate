@@ -9,7 +9,8 @@
         "AstraSyndicate.SceneFlow",
         "AstraSyndicate.Campaign",
         "AstraSyndicate.Combat",
-        "AstraSyndicate.AI"
+        "AstraSyndicate.AI",
+        "AstraSyndicate.Security"
     ],
     "includePlatforms": [
         "Editor"

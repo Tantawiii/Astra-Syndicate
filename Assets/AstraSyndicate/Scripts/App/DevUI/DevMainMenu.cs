@@ -1,14 +1,16 @@
 using System;
 using AstraSyndicate.Campaign;
 using AstraSyndicate.Core;
+using AstraSyndicate.Save;
 using AstraSyndicate.SceneFlow;
 using UnityEngine;
 
 namespace AstraSyndicate.App
 {
     /// <summary>
-    /// Placeholder main menu (IMGUI): continue, chapter and mission select with unlock state, and a
-    /// progress reset. The production UI replaces it and uses the same services.
+    /// Placeholder main menu (IMGUI): continue, chapter and mission select with unlock state, a progress reset,
+    /// and a notice when saved progress was damaged or tampered with. The production UI replaces it and uses
+    /// the same services and events.
     /// </summary>
     public sealed class DevMainMenu : MonoBehaviour
     {
@@ -21,9 +23,11 @@ namespace AstraSyndicate.App
         private IProgressService _progress;
         private ICampaignFlow _flow;
         private ISceneLoader _scenes;
+        private IEventBus _events;
         private Action _pending;
         private Vector2 _scroll;
         private bool _confirmingReset;
+        private string _saveNotice;
 
         private void Start()
         {
@@ -31,6 +35,22 @@ namespace AstraSyndicate.App
             Services.TryGet(out _progress);
             Services.TryGet(out _flow);
             Services.TryGet(out _scenes);
+            if (Services.TryGet(out _events))
+            {
+                _events.Subscribe<SaveLoadFailedEvent>(OnSaveLoadFailed);
+                _events.Subscribe<SaveFailedEvent>(OnSaveFailed);
+            }
+
+            // Load progress now, so a damaged-save notice exists before the first frame is drawn.
+            if (_progress != null) _ = _progress.HasProgress;
+        }
+
+        private void OnDestroy()
+        {
+            if (_events == null) return;
+
+            _events.Unsubscribe<SaveLoadFailedEvent>(OnSaveLoadFailed);
+            _events.Unsubscribe<SaveFailedEvent>(OnSaveFailed);
         }
 
         // Button actions run here instead of inside OnGUI, so state never changes between IMGUI's
@@ -58,6 +78,7 @@ namespace AstraSyndicate.App
             GUILayout.Label("ASTRA SYNDICATE: FLEET WARS", DevGui.Title);
             GUILayout.Label("Offline campaign: development menu (placeholder UI)", DevGui.Small);
             GUILayout.Space(8f);
+            DrawSaveNotice();
             DrawContinueButton();
             DrawSandboxButton();
 
@@ -80,6 +101,16 @@ namespace AstraSyndicate.App
 
             string label = _progress.HasProgress ? $"Continue: {mission.title}" : $"New Campaign: {mission.title}";
             if (GUILayout.Button(label, GUILayout.Height(44f))) Defer(() => _flow.StartMissionAsync(mission.id).Forget());
+        }
+
+        private void DrawSaveNotice()
+        {
+            if (string.IsNullOrEmpty(_saveNotice)) return;
+
+            GUILayout.BeginHorizontal(GUI.skin.box);
+            GUILayout.Label(_saveNotice, DevGui.Body);
+            if (GUILayout.Button("Dismiss", GUILayout.Width(90f), GUILayout.Height(28f))) Defer(() => _saveNotice = null);
+            GUILayout.EndHorizontal();
         }
 
         private void DrawSandboxButton()
@@ -145,6 +176,18 @@ namespace AstraSyndicate.App
         private void Defer(Action action)
         {
             _pending += action;
+        }
+
+        private void OnSaveLoadFailed(SaveLoadFailedEvent evt)
+        {
+            _saveNotice = evt.RecoveredFromBackup
+                ? "Your saved progress was damaged and has been restored from its backup."
+                : "Your saved progress could not be read (damaged or modified), so the campaign starts fresh.";
+        }
+
+        private void OnSaveFailed(SaveFailedEvent evt)
+        {
+            _saveNotice = $"Progress could not be saved: {evt.Error}";
         }
 
         private static string DescribeMission(bool unlocked, MissionRecord record)

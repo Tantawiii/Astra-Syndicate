@@ -1,0 +1,16 @@
+{
+    "name": "AstraSyndicate.Security",
+    "rootNamespace": "AstraSyndicate.Security",
+    "references": [
+        "AstraSyndicate.Save"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

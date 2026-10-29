@@ -15,5 +15,5 @@ MonoBehaviour:
   campaignCatalog: {fileID: 11400000, guid: 486e86efbe3ba724a9eea70a907f0aab, type: 2}
   mainMenuScene: MainMenu
   transitionFadeSeconds: 0.35
-  saveProtector: {fileID: 0}
+  saveProtector: {fileID: 11400000, guid: dc008b1fc8cec4245988f728bb55bc7a, type: 2}
   saveFolderName: saves

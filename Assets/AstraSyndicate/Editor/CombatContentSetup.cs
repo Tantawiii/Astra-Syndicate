@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using AstraSyndicate.AI;
 using AstraSyndicate.App;
@@ -13,9 +14,9 @@ using Random = System.Random;
 namespace AstraSyndicate.EditorTools
 {
     /// <summary>
-    /// Generates the DEV-02 combat content from primitives (zero-budget art): materials, starfield skybox,
-    /// asteroid meshes, effects, projectiles, combat configs, ship prefabs and the CombatSandbox scene.
-    /// Existing assets are kept, so tuning done in the editor survives re-runs.
+    /// Generates the combat content from primitives (zero-budget art): materials, starfield skybox, asteroid
+    /// meshes, effects, projectiles, combat configs, ship prefabs and the CombatSandbox scene, plus the scene
+    /// building blocks the mission scenes use. Existing assets are kept, so tuning done in the editor survives re-runs.
     /// </summary>
     internal static class CombatContentSetup
     {
@@ -37,6 +38,8 @@ namespace AstraSyndicate.EditorTools
         private const string SkyboxPath = MaterialsFolder + "/M_StarfieldSkybox.mat";
         private const string AsteroidMaterialPath = MaterialsFolder + "/M_Asteroid.mat";
         private const string GateMaterialPath = MaterialsFolder + "/M_Gate.mat";
+        private const string PlayerHullMaterialPath = MaterialsFolder + "/M_PlayerHull.mat";
+        private const string PlayerAccentMaterialPath = MaterialsFolder + "/M_PlayerAccent.mat";
 
         private const int AsteroidVariants = 3;
         private const int AsteroidCount = 70;
@@ -109,8 +112,32 @@ namespace AstraSyndicate.EditorTools
             AssetDatabase.SaveAssets();
         }
 
-        /// <summary>Fills the (new, empty, active) sandbox scene. Assets are loaded from disk because creating a scene can unload in-memory copies.</summary>
+        /// <summary>Fills the (new, empty, active) sandbox scene with endless waves and a waypoint gate.</summary>
         public static void PopulateSandboxScene()
+        {
+            Vector3[] spawnPositions =
+            {
+                new Vector3(0f, 60f, 1000f),
+                new Vector3(-850f, -40f, 650f),
+                new Vector3(850f, 30f, 700f),
+            };
+            var gatePosition = new Vector3(-380f, 40f, 820f);
+
+            CombatStage stage = BuildStage(4242, new List<Vector3>(spawnPositions) { gatePosition }.ToArray());
+            CreateWaypointGate("sandbox_gate", gatePosition, null);
+            EnemyWaveSpawner spawner = CreateEnemyWaves("Enemy Waves", null, spawnPositions,
+                firstWaveSize: 3, extraShipsPerWave: 1, maxWaveSize: 8, totalWaves: 0, firstWaveDelay: 2f, timeBetweenWaves: 6f);
+
+            new GameObject("Combat Sandbox").AddComponent<CombatSandboxController>().Configure(stage.Player, spawner);
+        }
+
+        /// <summary>
+        /// The shared part of every combat scene, built in the active scene: lighting and skybox, the player fleet at
+        /// the origin facing +Z, the chase camera, the flight HUD and an asteroid belt that keeps clear of the start
+        /// and of <paramref name="keepClear"/> (spawn points, gates). Assets are loaded from disk because creating or
+        /// opening a scene can unload in-memory copies.
+        /// </summary>
+        public static CombatStage BuildStage(int asteroidSeed, params Vector3[] keepClear)
         {
             var meshes = new Mesh[AsteroidVariants];
             for (int i = 0; i < meshes.Length; i++) meshes[i] = SetupUtility.Load<Mesh>(AsteroidMeshPath(i));
@@ -122,17 +149,70 @@ namespace AstraSyndicate.EditorTools
             CreateSun();
             PlayerFlightController player = CreatePlayerFleet(SetupUtility.Load<GameObject>(FlagshipPath), SetupUtility.Load<GameObject>(WingmanPath));
             Camera camera = CreateChaseCamera(player, SetupUtility.Load<GameObject>(SpaceDustPath));
-            Transform[] spawnPoints = CreateSpawnPoints();
-            PatrolRoute[] routes = CreatePatrolRoutes(spawnPoints);
-            CreateAsteroidField(meshes, SetupUtility.Load<Material>(AsteroidMaterialPath), spawnPoints);
-            CreateWaypointGate(SetupUtility.Load<Material>(GateMaterialPath));
+            CreateAsteroidField(meshes, SetupUtility.Load<Material>(AsteroidMaterialPath), asteroidSeed, keepClear);
+            new GameObject("Flight HUD").AddComponent<DevFlightHud>().Configure(player, camera);
+            return new CombatStage(player, camera);
+        }
 
-            var spawner = new GameObject("Enemy Waves").AddComponent<EnemyWaveSpawner>();
-            spawner.Configure(SetupUtility.Load<GameObject>(RaiderPath).GetComponent<Ship>(), spawnPoints, routes);
+        /// <summary>
+        /// A raider wave spawner with its spawn points (facing the player start) and a patrol route around each.
+        /// Set <paramref name="totalWaves"/> to 0 for endless waves.
+        /// </summary>
+        public static EnemyWaveSpawner CreateEnemyWaves(string name, Transform parent, Vector3[] spawnPositions,
+            int firstWaveSize, int extraShipsPerWave, int maxWaveSize, int totalWaves, float firstWaveDelay, float timeBetweenWaves)
+        {
+            var root = new GameObject(name);
+            root.transform.SetParent(parent, false);
+            Transform[] points = CreateSpawnPoints(root.transform, spawnPositions);
+            PatrolRoute[] routes = CreatePatrolRoutes(root.transform, points);
 
-            var sandbox = new GameObject("Combat Sandbox");
-            sandbox.AddComponent<CombatSandboxController>().Configure(player, spawner);
-            sandbox.AddComponent<DevFlightHud>().Configure(player, camera);
+            var spawner = root.AddComponent<EnemyWaveSpawner>();
+            spawner.Configure(SetupUtility.Load<GameObject>(RaiderPath).GetComponent<Ship>(), points, routes);
+            SetupUtility.Assign(spawner,
+                ("firstWaveSize", firstWaveSize), ("extraShipsPerWave", extraShipsPerWave), ("maxWaveSize", maxWaveSize),
+                ("totalWaves", totalWaves), ("firstWaveDelay", firstWaveDelay), ("timeBetweenWaves", timeBetweenWaves));
+            return spawner;
+        }
+
+        /// <summary>A ring gate (facing the player start) whose trigger publishes WaypointReachedEvent for the flagship.</summary>
+        public static WaypointTrigger CreateWaypointGate(string waypointId, Vector3 position, Transform parent)
+        {
+            const float radius = 24f;
+            const int segments = 16;
+            Material material = SetupUtility.Load<Material>(GateMaterialPath);
+
+            var gate = new GameObject($"Waypoint Gate ({waypointId})");
+            gate.transform.SetParent(parent, false);
+            gate.transform.SetPositionAndRotation(position, Quaternion.LookRotation(-position));
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = i * Mathf.PI * 2f / segments;
+                var offset = new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0f);
+                Part(PrimitiveType.Cube, $"Segment {i + 1}", gate.transform, offset, new Vector3(0f, 0f, angle * Mathf.Rad2Deg),
+                    new Vector3(2f, 2f * Mathf.PI * radius / segments, 2f), material);
+            }
+
+            var trigger = gate.AddComponent<SphereCollider>();
+            trigger.isTrigger = true;
+            trigger.radius = radius;
+            var waypoint = gate.AddComponent<WaypointTrigger>();
+            waypoint.Configure(waypointId, "flagship", once: true);
+            return waypoint;
+        }
+
+        /// <summary>The Kepler relay: a large static set piece the fleet defends in "Hold the Line". Solid, so ships can collide with it.</summary>
+        public static void CreateRelayStation(Vector3 position)
+        {
+            Material hull = SetupUtility.Load<Material>(PlayerHullMaterialPath);
+            Material accent = SetupUtility.Load<Material>(PlayerAccentMaterialPath);
+
+            Transform relay = new GameObject("Kepler Relay").transform;
+            relay.position = position;
+            SolidPart(PrimitiveType.Cylinder, "Spine", relay, Vector3.zero, Vector3.zero, new Vector3(9f, 45f, 9f), hull);
+            SolidPart(PrimitiveType.Cylinder, "Ring Upper", relay, new Vector3(0f, 25f, 0f), Vector3.zero, new Vector3(46f, 1.5f, 46f), hull);
+            SolidPart(PrimitiveType.Cylinder, "Ring Lower", relay, new Vector3(0f, -25f, 0f), Vector3.zero, new Vector3(34f, 1.5f, 34f), hull);
+            SolidPart(PrimitiveType.Sphere, "Dish", relay, new Vector3(0f, 49f, 0f), Vector3.zero, new Vector3(18f, 6f, 18f), hull);
+            SolidPart(PrimitiveType.Sphere, "Beacon", relay, new Vector3(0f, 54f, 0f), Vector3.zero, new Vector3(4f, 4f, 4f), accent);
         }
 
         // ---- Materials and textures ------------------------------------------------------------------
@@ -562,19 +642,26 @@ namespace AstraSyndicate.EditorTools
             }
         }
 
+        // A visual-only primitive: the collider is removed (ships use one box collider on their root).
         private static void Part(PrimitiveType type, string name, Transform parent, Vector3 position, Vector3 euler, Vector3 scale, Material material)
+        {
+            GameObject part = SolidPart(type, name, parent, position, euler, scale, material);
+            Object.DestroyImmediate(part.GetComponent<Collider>());
+        }
+
+        private static GameObject SolidPart(PrimitiveType type, string name, Transform parent, Vector3 position, Vector3 euler, Vector3 scale, Material material)
         {
             GameObject part = GameObject.CreatePrimitive(type);
             part.name = name;
-            Object.DestroyImmediate(part.GetComponent<Collider>());
             part.transform.SetParent(parent, false);
             part.transform.localPosition = position;
             part.transform.localEulerAngles = euler;
             part.transform.localScale = scale;
             part.GetComponent<MeshRenderer>().sharedMaterial = material;
+            return part;
         }
 
-        // ---- Sandbox scene ----------------------------------------------------------------------------
+        // ---- Scene building blocks --------------------------------------------------------------------
 
         private static void CreateSun()
         {
@@ -622,15 +709,11 @@ namespace AstraSyndicate.EditorTools
             return camera;
         }
 
-        private static Transform[] CreateSpawnPoints()
+        // Spawn points face the player start, so ships arrive pointing at the action.
+        private static Transform[] CreateSpawnPoints(Transform parent, Vector3[] positions)
         {
             Transform root = new GameObject("Spawn Points").transform;
-            Vector3[] positions =
-            {
-                new Vector3(0f, 60f, 1000f),
-                new Vector3(-850f, -40f, 650f),
-                new Vector3(850f, 30f, 700f),
-            };
+            root.SetParent(parent, false);
 
             var points = new Transform[positions.Length];
             for (int i = 0; i < positions.Length; i++)
@@ -642,7 +725,7 @@ namespace AstraSyndicate.EditorTools
             return points;
         }
 
-        private static PatrolRoute[] CreatePatrolRoutes(Transform[] spawnPoints)
+        private static PatrolRoute[] CreatePatrolRoutes(Transform parent, Transform[] spawnPoints)
         {
             Vector3[] corners =
             {
@@ -653,6 +736,7 @@ namespace AstraSyndicate.EditorTools
             };
 
             Transform root = new GameObject("Patrol Routes").transform;
+            root.SetParent(parent, false);
             var routes = new PatrolRoute[spawnPoints.Length];
             for (int i = 0; i < spawnPoints.Length; i++)
             {
@@ -670,18 +754,18 @@ namespace AstraSyndicate.EditorTools
             return routes;
         }
 
-        // Deterministic belt of asteroids around the arena, keeping the player start and spawn points clear.
-        private static void CreateAsteroidField(Mesh[] meshes, Material material, Transform[] spawnPoints)
+        // Deterministic belt of asteroids around the arena, keeping the player start and the given points clear.
+        private static void CreateAsteroidField(Mesh[] meshes, Material material, int seed, Vector3[] keepClear)
         {
             Transform root = new GameObject("Asteroid Field").transform;
-            var random = new Random(4242);
+            var random = new Random(seed);
             int placed = 0;
             for (int attempt = 0; attempt < 2000 && placed < AsteroidCount; attempt++)
             {
                 Vector3 direction = RandomDirection(random);
                 float distance = Mathf.Lerp(260f, 1600f, (float)random.NextDouble());
                 Vector3 position = Vector3.Scale(direction * distance, new Vector3(1f, 0.45f, 1f));
-                if (position.magnitude < 220f || IsNear(position, spawnPoints, 160f)) continue;
+                if (position.magnitude < 220f || IsNear(position, keepClear, 160f)) continue;
 
                 float size = Mathf.Lerp(8f, 60f, Mathf.Pow((float)random.NextDouble(), 2.2f));
                 var asteroid = new GameObject($"Asteroid {placed + 1}");
@@ -700,28 +784,6 @@ namespace AstraSyndicate.EditorTools
             }
         }
 
-        private static void CreateWaypointGate(Material material)
-        {
-            const float radius = 24f;
-            const int segments = 16;
-
-            var gate = new GameObject("Waypoint Gate");
-            var position = new Vector3(-380f, 40f, 820f);
-            gate.transform.SetPositionAndRotation(position, Quaternion.LookRotation(-position));
-            for (int i = 0; i < segments; i++)
-            {
-                float angle = i * Mathf.PI * 2f / segments;
-                var offset = new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0f);
-                Part(PrimitiveType.Cube, $"Segment {i + 1}", gate.transform, offset, new Vector3(0f, 0f, angle * Mathf.Rad2Deg),
-                    new Vector3(2f, 2f * Mathf.PI * radius / segments, 2f), material);
-            }
-
-            var trigger = gate.AddComponent<SphereCollider>();
-            trigger.isTrigger = true;
-            trigger.radius = radius;
-            gate.AddComponent<WaypointTrigger>().Configure("sandbox_gate", "flagship", once: true);
-        }
-
         private static Vector3 RandomDirection(Random random)
         {
             while (true)
@@ -732,11 +794,11 @@ namespace AstraSyndicate.EditorTools
             }
         }
 
-        private static bool IsNear(Vector3 position, Transform[] points, float distance)
+        private static bool IsNear(Vector3 position, Vector3[] points, float distance)
         {
-            foreach (Transform point in points)
+            foreach (Vector3 point in points)
             {
-                if ((point.position - position).sqrMagnitude < distance * distance) return true;
+                if ((point - position).sqrMagnitude < distance * distance) return true;
             }
             return false;
         }
@@ -756,6 +818,19 @@ namespace AstraSyndicate.EditorTools
             Shader shader = Shader.Find(name);
             if (shader == null) throw new System.InvalidOperationException($"Shader '{name}' was not found. Is URP installed?");
             return shader;
+        }
+
+        /// <summary>The player's side of a generated combat scene.</summary>
+        public readonly struct CombatStage
+        {
+            public readonly PlayerFlightController Player;
+            public readonly Camera Camera;
+
+            public CombatStage(PlayerFlightController player, Camera camera)
+            {
+                Player = player;
+                Camera = camera;
+            }
         }
 
         private readonly struct ShipLayout

@@ -14,6 +14,9 @@ namespace AstraSyndicate.App
     {
         private const float PanelWidth = 380f;
 
+        [Tooltip("Show the buttons that simulate gameplay events. Toggle in play with F1.")]
+        [SerializeField] private bool showDebugPanel;
+
         private readonly List<string> _notices = new List<string>();
         private IMissionStateManager _missions;
         private ICampaignFlow _flow;
@@ -73,7 +76,7 @@ namespace AstraSyndicate.App
                     break;
                 case MissionState.Running:
                     DrawStatus(mission);
-                    DrawDebugPanel(mission);
+                    if (showDebugPanel) DrawDebugPanel(mission);
                     break;
                 case MissionState.Paused:
                     DrawStatus(mission);
@@ -91,13 +94,21 @@ namespace AstraSyndicate.App
         private void HandleShortcuts()
         {
             Event current = Event.current;
-            if (current.type != EventType.KeyDown || current.keyCode != KeyCode.Escape) return;
+            if (current.type != EventType.KeyDown) return;
 
-            current.Use();
-            Defer(() =>
+            if (current.keyCode == KeyCode.Escape)
             {
-                if (!_missions.Pause()) _missions.Resume();
-            });
+                current.Use();
+                Defer(() =>
+                {
+                    if (!_missions.Pause()) _missions.Resume();
+                });
+            }
+            else if (current.keyCode == KeyCode.F1)
+            {
+                current.Use();
+                Defer(() => showDebugPanel = !showDebugPanel);
+            }
         }
 
         private void DrawBriefing(MissionData mission)
@@ -138,6 +149,7 @@ namespace AstraSyndicate.App
             {
                 GUILayout.Label($"{StatusMark(objective.Status)} {objective.Description}{OptionalSuffix(objective)}: {objective.ProgressText}", DevGui.Body);
             }
+            if (_missions.State == MissionState.Running) GUILayout.Label("Esc: pause   F1: debug tools", DevGui.Small);
             GUILayout.EndArea();
         }
 
@@ -145,7 +157,7 @@ namespace AstraSyndicate.App
         {
             GUILayout.BeginArea(new Rect(DevGui.Width - PanelWidth - 12f, 12f, PanelWidth, 420f), GUI.skin.box);
             GUILayout.Label("DEBUG: simulate gameplay", DevGui.Header);
-            GUILayout.Label("Combat (Task 1.2) will publish these events for real.", DevGui.Small);
+            GUILayout.Label("Publishes the same events real combat does. Hold Alt to use the mouse.", DevGui.Small);
 
             if (GUILayout.Button("Enemy destroyed")) Defer(() => PublishEnemyDestroyed(null));
             foreach (ObjectiveData objective in mission.objectives)

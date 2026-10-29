@@ -67,8 +67,9 @@ namespace AstraSyndicate.App
                 current.Use();
             }
 
-            // Drawing only: no controls, so nothing to do outside the repaint pass.
-            if (current.type != EventType.Repaint || player == null || viewCamera == null) return;
+            // Drawing only: no controls, so nothing to do outside the repaint pass. Hidden while flight input is off
+            // (briefing, pause, results) so menus are not drawn over a live HUD.
+            if (current.type != EventType.Repaint || player == null || viewCamera == null || !player.InputEnabled) return;
 
             DevGui.Begin();
             DrawShipMarkers();
@@ -188,7 +189,7 @@ namespace AstraSyndicate.App
             string text = showControls
                 ? "Mouse aim · W/S throttle · A/D turn · Shift boost · LMB fire · T/RMB target · F wing attack · G form up · hold Alt: cursor · H: hide"
                 : "H: show controls";
-            DevGui.HudLabel(new Rect(0f, 8f, DevGui.Width, 22f), text, new Color(1f, 1f, 1f, 0.7f), centered: true);
+            DevGui.HudLabel(new Rect(0f, DevGui.Height - 26f, DevGui.Width, 22f), text, new Color(1f, 1f, 1f, 0.7f), centered: true);
         }
 
         private bool IsOnScreen(Vector3 world, out Vector2 point)
